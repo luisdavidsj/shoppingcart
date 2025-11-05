@@ -1,0 +1,22 @@
+spring:
+  application:
+    name: shopping-cart
+  main:
+    allow-bean-definition-overriding: true
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+
+  # Seguridad: cabeceras y session por default (luego afinamos con Spring Session JDBC)
+  session:
+    store-type: jdbc  # lo activaremos cuando agreguemos la DB
+    jdbc:
+      initialize-schema: never
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+server:
+  port: 8080
