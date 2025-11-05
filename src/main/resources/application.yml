@@ -1,22 +1,42 @@
 spring:
   application:
     name: shopping-cart
-  main:
-    allow-bean-definition-overriding: true
-  autoconfigure:
-    exclude:
-      - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
 
-  # Seguridad: cabeceras y session por default (luego afinamos con Spring Session JDBC)
+  datasource:
+    url: jdbc:mysql://localhost:3307/shopping_cart_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+    username: sc_user
+    password: sc_pass
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        jdbc.time_zone: UTC
+
   session:
-    store-type: jdbc  # lo activaremos cuando agreguemos la DB
+    store-type: jdbc
     jdbc:
-      initialize-schema: never
+      initialize-schema: always
+
+  kafka:
+    bootstrap-servers: localhost:19092
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      acks: all
+    template:
+      default-topic: cart-item-added
 
 management:
   endpoints:
     web:
       exposure:
         include: health,info
+
 server:
   port: 8080

@@ -1,0 +1,49 @@
+version: "3.9"
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: sc_mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: shopping_cart_db
+      MYSQL_USER: sc_user
+      MYSQL_PASSWORD: sc_pass
+    ports:
+      - "3307:3306"
+    command: ["mysqld", "--sql-mode="]
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-usc_user", "-psc_pass"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  redpanda:
+    image: redpandadata/redpanda:v24.2.13
+    container_name: sc_redpanda
+    command:
+      - redpanda start
+      - --overprovisioned
+      - --smp=1
+      - --memory=512M
+      - --reserve-memory=0M
+      - --node-id=0
+      - --check=false
+      - --kafka-addr=PLAINTEXT://0.0.0.0:9092,OUTSIDE://0.0.0.0:19092
+      - --advertise-kafka-addr=PLAINTEXT://redpanda:9092,OUTSIDE://localhost:19092
+    ports:
+      - "19092:19092"
+      - "9644:9644" # admin
+    healthcheck:
+      test: ["CMD", "bash", "-c", "rpk cluster info --brokers=localhost:19092 || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+  redpanda-console:
+      image: docker.redpanda.com/redpandadata/console:latest
+      container_name: sc_redpanda_console
+      environment:
+        - KAFKA_BROKERS=redpanda:9092
+      ports:
+        - "8081:8080"
+      depends_on:
+        - redpanda
