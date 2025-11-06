@@ -23,11 +23,12 @@ public class Cart {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // Identificador lógico del usuario dueño del carrito (más adelante se integra
-    // con Security)
+    // Identificador lógico del usuario dueño del carrito (más adelante se integra con Security)
     @Column(nullable = false)
     private String userId;
 
+    // evita recursión en logs
+    @ToString.Exclude
     @OneToMany(mappedBy = "cart", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     @Builder.Default
     private List<CartItem> items = new ArrayList<>();

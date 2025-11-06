@@ -5,6 +5,8 @@ import lombok.*;
 
 import java.math.BigDecimal;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 @Entity
 @Table(name = "cart_items")
 @Getter @Setter
@@ -28,6 +30,9 @@ public class CartItem {
     @Column(nullable = false)
     private Integer quantity;
 
+    // evita recursión en logs y si algún endpoint accidentalmente serializa entidad
+    @ToString.Exclude
+    @JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "cart_id")
     private Cart cart;

@@ -1,10 +1,14 @@
 package com.example.shoppingcart.repository;
 
 import com.example.shoppingcart.domain.Cart;
+
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Optional;
 
 public interface CartRepository extends JpaRepository<Cart, Long> {
     Optional<Cart> findByUserId(String userId);
+    @EntityGraph(attributePaths = "items")
+    Optional<Cart> findWithItemsByUserId(String userId);
 }

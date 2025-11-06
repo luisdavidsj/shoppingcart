@@ -29,7 +29,7 @@ public class KafkaConfig {
     }
 
     @Bean
-    public KafkaTemplate<String, String> kafkaTemplate(ProducerFactory<String,String> pf) {
+    public KafkaTemplate<String, String> kafkaTemplate(ProducerFactory<String, String> pf) {
         return new KafkaTemplate<>(pf);
     }
 
@@ -38,4 +38,25 @@ public class KafkaConfig {
             @Value("${spring.kafka.template.default-topic:cart-item-added}") String topicName) {
         return TopicBuilder.name(topicName).partitions(1).replicas(1).build();
     }
+
+    @Bean
+    public NewTopic cartItemUpdatedTopic() {
+        return TopicBuilder.name("cart-item-updated").partitions(1).replicas(1).build();
+    }
+
+    @Bean
+    public NewTopic cartItemRemovedTopic() {
+        return TopicBuilder.name("cart-item-removed").partitions(1).replicas(1).build();
+    }
+
+    @Bean
+    public NewTopic cartClearedTopic() {
+        return TopicBuilder.name("cart-cleared").partitions(1).replicas(1).build();
+    }
+
+    @Bean
+    public NewTopic cartCheckedOutTopic() {
+        return TopicBuilder.name("cart-checked-out").partitions(1).replicas(1).build();
+    }
+
 }
