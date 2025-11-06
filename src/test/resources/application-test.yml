@@ -1,0 +1,16 @@
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+  session:
+    store-type: jdbc
+    jdbc:
+      initialize-schema: always
+
+logging:
+  level:
+    root: WARN
