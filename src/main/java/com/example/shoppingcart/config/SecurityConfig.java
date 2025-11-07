@@ -28,12 +28,12 @@ public class SecurityConfig {
         http
             .csrf(csrf -> csrf.disable())
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/health", "/actuator/health", "/api/auth/login").permitAll()
+                .requestMatchers("/api/health", "/actuator/health").permitAll()
+                .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                .requestMatchers("/api/**").hasAnyRole("USER","ADMIN")
                 .anyRequest().authenticated()
             )
-            .httpBasic(Customizer.withDefaults()) // para probar rápido con Postman
-            .formLogin(form -> form.disable())    // desactiva login por formulario HTML
-            .logout(lo -> lo.logoutUrl("/api/auth/logout"));
+            .httpBasic(Customizer.withDefaults());
         return http.build();
     }
 
