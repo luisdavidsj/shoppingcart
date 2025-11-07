@@ -28,12 +28,17 @@ public class SecurityConfig {
         http
             .csrf(csrf -> csrf.disable())
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/health", "/actuator/health").permitAll()
+                // público
+                .requestMatchers("/api/health", "/actuator/health", "/api/auth/**").permitAll()
+                // admin
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                // usuario (y admin)
                 .requestMatchers("/api/**").hasAnyRole("USER","ADMIN")
                 .anyRequest().authenticated()
             )
+            // Habilita Basic Auth (para Postman); mantenemos sesiones para el login por cookie
             .httpBasic(Customizer.withDefaults());
+
         return http.build();
     }
 
