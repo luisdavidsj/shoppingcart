@@ -55,13 +55,13 @@ public class CartService {
                         item.getQuantity(),
                         item.getUnitPrice().toPlainString());
 
-                // 🔹 Evita que un fallo en Kafka tumbe la petición
+                // Evita que un fallo en Kafka tumbe la petición
                 try {
                     if (kafkaTemplate != null) {
                         kafkaTemplate.send("cart-item-added", saved.getUserId(), message);
                     }
                 } catch (Exception ignored) {
-                    // puedes loguearlo si quieres ver cuando Kafka falla
+                    // log cuando Kafka falla
                     System.err.println("[WARN] No se pudo publicar el mensaje en Kafka.");
                 }
 
