@@ -1,32 +1,41 @@
 package com.example.shoppingcart.config;
 
+import com.example.shoppingcart.security.JwtAuthenticationFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.userdetails.User;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.session.web.http.CookieHttpSessionIdResolver;
-import org.springframework.session.web.http.HttpSessionIdResolver;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 @Configuration
 public class SecurityConfig {
 
     @Bean
-    InMemoryUserDetailsManager userDetailsService() {
+    PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
+    }
+
+    @Bean
+    InMemoryUserDetailsManager userDetailsService(PasswordEncoder encoder) {
         return new InMemoryUserDetailsManager(
-            User.withUsername("admin").password("{noop}admin123").roles("ADMIN").build(),
-            User.withUsername("luis").password("{noop}demo123").roles("USER").build()
+            User.withUsername("admin").password(encoder.encode("admin123")).roles("ADMIN").build(),
+            User.withUsername("luis").password(encoder.encode("demo123")).roles("USER").build()
         );
     }
 
     @Bean
-    SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+    SecurityFilterChain filterChain(HttpSecurity http, JwtAuthenticationFilter jwtAuthenticationFilter) throws Exception {
         http
             .csrf(csrf -> csrf.disable())
+            .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 // público
                 .requestMatchers("/api/health", "/actuator/health", "/api/auth/**").permitAll()
@@ -36,8 +45,9 @@ public class SecurityConfig {
                 .requestMatchers("/api/**").hasAnyRole("USER","ADMIN")
                 .anyRequest().authenticated()
             )
-            // Habilita Basic Auth (para Postman); mantenemos sesiones para el login por cookie
-            .httpBasic(Customizer.withDefaults());
+            // Basic Auth como alternativa rápida para Postman; el flujo principal usa JWT
+            .httpBasic(Customizer.withDefaults())
+            .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
@@ -46,11 +56,5 @@ public class SecurityConfig {
     @Bean
     AuthenticationManager authenticationManager(AuthenticationConfiguration cfg) throws Exception {
         return cfg.getAuthenticationManager();
-    }
-
-    // Usa cookie JSESSIONID para las sesiones persistidas en MySQL
-    @Bean
-    public HttpSessionIdResolver httpSessionIdResolver() {
-        return new CookieHttpSessionIdResolver();
     }
 }

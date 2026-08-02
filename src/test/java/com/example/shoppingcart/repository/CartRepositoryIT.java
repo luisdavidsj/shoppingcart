@@ -17,7 +17,7 @@ import static org.junit.jupiter.api.Assertions.*;
 @ActiveProfiles("test")
 @Testcontainers
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-class CartRepositoryTest {
+class CartRepositoryIT {
 
     @Container
     @ServiceConnection

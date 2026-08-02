@@ -6,10 +6,11 @@ spring:
     properties:
       hibernate:
         format_sql: true
-  session:
-    store-type: jdbc
-    jdbc:
-      initialize-schema: always
+
+app:
+  jwt:
+    secret: test-only-secret-not-for-production-min-32-bytes
+    expiration-minutes: 60
 
 logging:
   level:
