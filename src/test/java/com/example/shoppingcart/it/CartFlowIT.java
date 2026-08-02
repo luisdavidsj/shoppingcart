@@ -74,4 +74,19 @@ class CartFlowIT extends AbstractIntegrationTest {
         mvc.perform(get("/api/carts"))
                 .andExpect(status().isUnauthorized());
     }
+
+    @Test
+    void adminEndpoint_asRegularUser_returns403() throws Exception {
+        var loginBody = om.writeValueAsString(Map.of("username", "luis", "password", "demo123"));
+        var loginResp = mvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(loginBody))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        String token = om.readTree(loginResp.getResponse().getContentAsString()).get("token").asText();
+
+        mvc.perform(get("/api/admin/carts").header("Authorization", "Bearer " + token))
+                .andExpect(status().isForbidden());
+    }
 }

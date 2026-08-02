@@ -5,10 +5,11 @@ import com.example.shoppingcart.api.mapper.CartMapper;
 import com.example.shoppingcart.domain.Cart;
 import com.example.shoppingcart.repository.CartRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/admin/carts")
@@ -19,9 +20,9 @@ public class AdminCartController {
     private final CartMapper cartMapper;
 
     @GetMapping
-    public ResponseEntity<List<CartDto>> getAllCarts() {
-        List<Cart> carts = cartRepository.findAll();
-        return ResponseEntity.ok(carts.stream().map(cartMapper::toDto).toList());
+    public ResponseEntity<Page<CartDto>> getAllCarts(@PageableDefault(size = 20) Pageable pageable) {
+        Page<Cart> carts = cartRepository.findAll(pageable);
+        return ResponseEntity.ok(carts.map(cartMapper::toDto));
     }
 
     @DeleteMapping("/{id}")

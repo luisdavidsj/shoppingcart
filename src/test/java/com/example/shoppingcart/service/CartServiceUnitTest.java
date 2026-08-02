@@ -5,6 +5,7 @@ import com.example.shoppingcart.domain.Cart;
 import com.example.shoppingcart.repository.CartItemRepository;
 import com.example.shoppingcart.repository.CartRepository;
 import com.example.shoppingcart.service.dto.AddItemRequest;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.kafka.core.KafkaTemplate;
 
@@ -25,6 +26,7 @@ class CartServiceUnitTest {
         @SuppressWarnings("unchecked")
         KafkaTemplate<String,String> kafkaTemplate = mock(KafkaTemplate.class);
         CartMapper mapper = new CartMapper(); // real, no dependencias
+        ObjectMapper objectMapper = new ObjectMapper();
 
         // Stubs
         when(cartRepo.findByUserId("luis")).thenReturn(Optional.empty());
@@ -32,7 +34,7 @@ class CartServiceUnitTest {
         when(cartRepo.saveAndFlush(any(Cart.class))).thenAnswer(a -> a.getArgument(0));
 
         // SUT con firma
-        CartService service = new CartService(cartRepo, kafkaTemplate, itemRepo, mapper);
+        CartService service = new CartService(cartRepo, kafkaTemplate, itemRepo, mapper, objectMapper);
 
         // Act
         AddItemRequest req = new AddItemRequest("SKU-1", "Mouse", 2, new BigDecimal("10.00"));

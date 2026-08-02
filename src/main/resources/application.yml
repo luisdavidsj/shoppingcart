@@ -10,7 +10,9 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: update
+      # El esquema lo controlan las migraciones de Flyway (db/migration); Hibernate
+      # solo valida que las entidades coincidan, nunca modifica la base de datos.
+      ddl-auto: validate
     open-in-view: false
     show-sql: true
     properties:

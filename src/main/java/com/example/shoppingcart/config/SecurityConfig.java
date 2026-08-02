@@ -39,6 +39,7 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 // público
                 .requestMatchers("/api/health", "/actuator/health", "/api/auth/**").permitAll()
+                .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**").permitAll()
                 // admin
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
                 // usuario (y admin)

@@ -4,12 +4,19 @@ import com.example.shoppingcart.api.dto.CartDto;
 import com.example.shoppingcart.api.mapper.CartMapper;
 import com.example.shoppingcart.domain.Cart;
 import com.example.shoppingcart.domain.CartItem;
+import com.example.shoppingcart.event.CartCheckedOutEvent;
+import com.example.shoppingcart.event.CartClearedEvent;
+import com.example.shoppingcart.event.CartItemAddedEvent;
+import com.example.shoppingcart.event.CartItemRemovedEvent;
+import com.example.shoppingcart.event.CartItemUpdatedEvent;
 import com.example.shoppingcart.repository.CartItemRepository;
 import com.example.shoppingcart.repository.CartRepository;
 import com.example.shoppingcart.service.dto.AddItemRequest;
 import com.example.shoppingcart.service.dto.UpdateItemQuantityRequest;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 import java.math.BigDecimal;
 
@@ -18,6 +25,7 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class CartService {
@@ -26,6 +34,7 @@ public class CartService {
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final CartItemRepository cartItemRepository;
     private final CartMapper cartMapper;
+    private final ObjectMapper objectMapper;
 
     @Transactional
     public Cart addItem(String userId, AddItemRequest req) {
@@ -45,25 +54,8 @@ public class CartService {
                 cart.addItem(item);
                 Cart saved = cartRepository.saveAndFlush(cart);
 
-                // Mensaje Kafka
-                String message = """
-                        {"event":"cart-item-added","userId":"%s","cartId":%d,"productId":"%s","qty":%d,"unitPrice":"%s"}
-                        """.formatted(
-                        saved.getUserId(),
-                        saved.getId(),
-                        item.getProductId(),
-                        item.getQuantity(),
-                        item.getUnitPrice().toPlainString());
-
-                // Evita que un fallo en Kafka tumbe la petición
-                try {
-                    if (kafkaTemplate != null) {
-                        kafkaTemplate.send("cart-item-added", saved.getUserId(), message);
-                    }
-                } catch (Exception ignored) {
-                    // log cuando Kafka falla
-                    System.err.println("[WARN] No se pudo publicar el mensaje en Kafka.");
-                }
+                publishEvent("cart-item-added", userId, new CartItemAddedEvent(
+                        saved.getUserId(), saved.getId(), item.getProductId(), item.getQuantity(), item.getUnitPrice()));
 
                 return saved;
             } catch (OptimisticLockingFailureException ex) {
@@ -95,16 +87,9 @@ public class CartService {
         cart.recalcTotal();
         Cart saved = cartRepository.saveAndFlush(cart);
 
-        // evento opcional
-        try {
-            if (kafkaTemplate != null) {
-                String message = """
-                        {"event":"cart-item-updated","userId":"%s","cartId":%d,"itemId":%d,"qty":%d}
-                        """.formatted(userId, saved.getId(), itemId, req.quantity());
-                kafkaTemplate.send("cart-item-updated", userId, message);
-            }
-        } catch (Exception ignored) {
-        }
+        publishEvent("cart-item-updated", userId,
+                new CartItemUpdatedEvent(userId, saved.getId(), itemId, req.quantity()));
+
         return saved;
     }
 
@@ -117,15 +102,9 @@ public class CartService {
         cart.recalcTotal();
         Cart saved = cartRepository.saveAndFlush(cart);
 
-        try {
-            if (kafkaTemplate != null) {
-                String message = """
-                        {"event":"cart-item-removed","userId":"%s","cartId":%d,"itemId":%d}
-                        """.formatted(userId, saved.getId(), itemId);
-                kafkaTemplate.send("cart-item-removed", userId, message);
-            }
-        } catch (Exception ignored) {
-        }
+        publishEvent("cart-item-removed", userId,
+                new CartItemRemovedEvent(userId, saved.getId(), itemId));
+
         return saved;
     }
 
@@ -137,15 +116,8 @@ public class CartService {
         cart.setTotal(BigDecimal.ZERO);
         Cart saved = cartRepository.saveAndFlush(cart);
 
-        try {
-            if (kafkaTemplate != null) {
-                String message = """
-                        {"event":"cart-cleared","userId":"%s","cartId":%d}
-                        """.formatted(userId, saved.getId());
-                kafkaTemplate.send("cart-cleared", userId, message);
-            }
-        } catch (Exception ignored) {
-        }
+        publishEvent("cart-cleared", userId, new CartClearedEvent(userId, saved.getId()));
+
         return saved;
     }
 
@@ -162,16 +134,8 @@ public class CartService {
         cart.recalcTotal();
         BigDecimal finalTotal = cart.getTotal();
 
-        // Publica evento de checkout
-        try {
-            if (kafkaTemplate != null) {
-                String message = """
-                        {"event":"cart-checked-out","userId":"%s","cartId":%d,"total":"%s","items":%d}
-                        """.formatted(userId, cart.getId(), finalTotal.toPlainString(), cart.getItems().size());
-                kafkaTemplate.send("cart-checked-out", userId, message);
-            }
-        } catch (Exception ignored) {
-        }
+        publishEvent("cart-checked-out", userId,
+                new CartCheckedOutEvent(userId, cart.getId(), finalTotal, cart.getItems().size()));
 
         // Limpia el carrito tras el "pago" simulado
         cart.getItems().clear();
@@ -186,5 +150,17 @@ public class CartService {
                 .orElseThrow(() -> new IllegalArgumentException("Cart not found for userId=" + userId));
         // Mapea a DTO antes de cerrar la transacción
         return cartMapper.toDto(cart);
+    }
+
+    /**
+     * Publica un evento en Kafka. Un fallo aquí (broker caído, serialización, etc.)
+     * nunca debe tumbar la petición HTTP que ya se completó exitosamente en la DB.
+     */
+    private void publishEvent(String topic, String userId, Object event) {
+        try {
+            kafkaTemplate.send(topic, userId, objectMapper.writeValueAsString(event));
+        } catch (Exception e) {
+            log.warn("No se pudo publicar el evento '{}' en Kafka para userId={}", topic, userId, e);
+        }
     }
 }
