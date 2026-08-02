@@ -13,7 +13,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-class CartFlowIntegrationTest extends AbstractIntegrationTest {
+class CartFlowIT extends AbstractIntegrationTest {
 
     @Autowired
     MockMvc mvc;
@@ -23,27 +23,25 @@ class CartFlowIntegrationTest extends AbstractIntegrationTest {
 
     @Test
     void fullFlow_login_add_get_checkout() throws Exception {
-        // 1) Login (crea sesión)
+        // 1) Login (genera JWT)
         var loginBody = om.writeValueAsString(Map.of("username", "luis", "password", "demo123"));
         var loginResp = mvc.perform(post("/api/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(loginBody))
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.token").isNotEmpty())
                 .andReturn();
 
-        // Usa cookie SESSION (Spring Session JDBC). Fallback a JSESSIONID si cambiara la config.
-        var cookie = loginResp.getResponse().getCookie("SESSION");
-        if (cookie == null) {
-            cookie = loginResp.getResponse().getCookie("JSESSIONID");
-        }
-        assertNotNull(cookie, "No session cookie (SESSION/JSESSIONID) in login response");
+        String token = om.readTree(loginResp.getResponse().getContentAsString()).get("token").asText();
+        assertNotNull(token, "No se recibió token JWT en la respuesta de login");
+        String authHeader = "Bearer " + token;
 
         // 2) Agregar item
         var addBody = """
             {"productId":"SKU-001","productName":"Mouse","quantity":2,"unitPrice":349.90}
         """;
         mvc.perform(post("/api/carts/items")
-                        .cookie(cookie)
+                        .header("Authorization", authHeader)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(addBody))
                 .andExpect(status().isOk())
@@ -51,14 +49,29 @@ class CartFlowIntegrationTest extends AbstractIntegrationTest {
                 .andExpect(jsonPath("$.items[0].productId").value("SKU-001"));
 
         // 3) Obtener carrito
-        mvc.perform(get("/api/carts").cookie(cookie))
+        mvc.perform(get("/api/carts").header("Authorization", authHeader))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.items.length()").value(1));
 
         // 4) Checkout
-        mvc.perform(post("/api/carts/checkout").cookie(cookie))
+        mvc.perform(post("/api/carts/checkout").header("Authorization", authHeader))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.items.length()").value(0))
                 .andExpect(jsonPath("$.total").value(0));
+    }
+
+    @Test
+    void login_wrongPassword_returns401() throws Exception {
+        var loginBody = om.writeValueAsString(Map.of("username", "luis", "password", "wrong-password"));
+        mvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(loginBody))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void protectedEndpoint_withoutToken_returns401() throws Exception {
+        mvc.perform(get("/api/carts"))
+                .andExpect(status().isUnauthorized());
     }
 }

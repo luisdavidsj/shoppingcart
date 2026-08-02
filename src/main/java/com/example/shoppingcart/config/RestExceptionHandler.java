@@ -4,6 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.ErrorResponseException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -49,6 +50,16 @@ public class RestExceptionHandler {
     public ResponseEntity<?> handleBadRequest(IllegalArgumentException ex) {
         return ResponseEntity.badRequest()
                 .body(body(HttpStatus.BAD_REQUEST, "Bad request", ex.getMessage()));
+    }
+
+    /**
+     * Credenciales inválidas en /api/auth/login. Mensaje genérico a propósito:
+     * no revelar si el usuario existe o si fue la contraseña la que falló.
+     */
+    @ExceptionHandler(AuthenticationException.class)
+    public ResponseEntity<?> handleAuthenticationError(AuthenticationException ex) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(body(HttpStatus.UNAUTHORIZED, "Authentication failed", "Credenciales inválidas"));
     }
 
     /**
